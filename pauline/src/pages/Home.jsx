@@ -11,7 +11,7 @@ export const Home = () => {
     const [products, setProducts] = useState([]);
 
     useEffect(() => {
-        API.get('/api/products/')
+        API.get('/api/produits/')
             .then((response) => {
                 setProducts(response.data);
             })
