@@ -1,23 +1,42 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+
+import API from '../services/api';
+
 import { Hero } from '../components/Hero';
 import { ProductCard } from '../components/ProductCard';
 import { Button } from '../components/ui/Button';
-import { products } from '../data/products';
 
 export const Home = () => {
-    // 1 produit par catégorie : Chaussures, Vêtements, Accessoires
+    const [products, setProducts] = useState([]);
+
+    useEffect(() => {
+        API.get('/api/products/')
+            .then((response) => {
+                setProducts(response.data);
+            })
+            .catch((error) => {
+                console.error(error);
+            });
+    }, []);
+
+    // 1 produit par catégorie
     const featuredProducts = [
-        products.find(p => p.category === 'Chaussures'),
-        products.find(p => p.category === 'Vêtements'),
-        products.find(p => p.category === 'Accessoires'),
+        products.find((p) => p.category === 'Chaussures'),
+        products.find((p) => p.category === 'Vêtements'),
+        products.find((p) => p.category === 'Accessoires'),
     ].filter(Boolean);
 
     return (
         <>
             <Hero />
+
             <section className="py-20 px-4 max-w-7xl mx-auto">
                 <div className="text-center mb-16">
-                    <h2 className="text-4xl font-serif font-bold text-text mt-3">Collection très bien notée</h2>
+                    <h2 className="text-4xl font-serif font-bold text-text mt-3">
+                        Collection très bien notée
+                    </h2>
+
                     <div className="w-24 h-1 bg-primary mx-auto mt-6 rounded-full"></div>
                 </div>
 
@@ -29,7 +48,10 @@ export const Home = () => {
 
                 <div className="text-center mt-12">
                     <Link to="/shop">
-                        <Button variant="outline" className="min-w-[200px] border-primary text-primary hover:bg-primary hover:text-white transition-colors">
+                        <Button
+                            variant="outline"
+                            className="min-w-[200px] border-primary text-primary hover:bg-primary hover:text-white transition-colors"
+                        >
                             Achetez plus
                         </Button>
                     </Link>
