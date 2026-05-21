@@ -216,7 +216,8 @@ export const Checkout = () => {
             id:            dbResult.commande_id.toString(),
             numero:        dbResult.numero_commande,
             transactionId: String(transactionId),
-            date:          new Date().toLocaleDateString('fr-FR`, {
+            date:          // APRÈS (corrigé)
+        new Date().toLocaleDateString('fr-FR', {
                                year: 'numeric', month: 'long', day: 'numeric'
                            }),
             total:         cartTotal,
