@@ -1,6 +1,6 @@
 """
 Configuration Django — Pauline Boutique
-PostgreSQL (Render) — pas besoin de XAMPP
+PostgreSQL (Render)
 """
 from pathlib import Path
 from datetime import timedelta
@@ -12,17 +12,20 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# ─── SECURITY ─────────────────────────────────────────────
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-changez-moi')
 
-DEBUG = os.getenv('DEBUG', 'False') == 'True'
+DEBUG = False
 
-# ─── ALLOWED HOSTS ───────────────────────────────────────────────────────
 ALLOWED_HOSTS = [
-    'localhost',
-    '127.0.0.1',
-    '.onrender.com',
+    ".onrender.com",
+    "localhost",
+    "127.0.0.1",
+    "hub-shop.onrender.com",
+    "hub-shop-hlxn.onrender.com"
 ]
 
+# ─── APPS ────────────────────────────────────────────────
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -38,10 +41,13 @@ INSTALLED_APPS = [
     'boutique',
 ]
 
+# ─── MIDDLEWARE (ORDRE CORRIGÉ IMPORTANT) ────────────────
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
+
+    'corsheaders.middleware.CorsMiddleware',
+
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -52,25 +58,9 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'config.urls'
 
-TEMPLATES = [
-    {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-            ],
-        },
-    },
-]
-
 WSGI_APPLICATION = 'config.wsgi.application'
 
-# ─── DATABASE ────────────────────────────────────────────────────────────
+# ─── DATABASE (RENDER POSTGRES) ──────────────────────────
 DATABASE_URL = os.getenv('DATABASE_URL')
 
 if DATABASE_URL:
@@ -87,7 +77,7 @@ else:
 
 AUTH_USER_MODEL = 'boutique.Utilisateur'
 
-# ─── REST FRAMEWORK ──────────────────────────────────────────────────────
+# ─── REST FRAMEWORK ──────────────────────────────────────
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -103,24 +93,25 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS': True,
 }
 
-# ─── CORS ────────────────────────────────────────────────────────────────
-CORS_ALLOW_CREDENTIALS = True
-
+# ─── CORS (IMPORTANT POUR REACT) ──────────────────────────
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:3000",
+    "https://hub-shop-hlxn.onrender.com"
 ]
 
-# ─── STATIC FILES ────────────────────────────────────────────────────────
+CORS_ALLOW_CREDENTIALS = True
+
+# ─── STATIC FILES (RENDER FIX) ───────────────────────────
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# ─── MEDIA ───────────────────────────────────────────────────────────────
+# ─── MEDIA ────────────────────────────────────────────────
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# ─── EMAIL SMTP ──────────────────────────────────────────────────────────
+# ─── EMAIL ────────────────────────────────────────────────
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 
 EMAIL_HOST = 'smtp.gmail.com'
@@ -132,12 +123,12 @@ EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 
 DEFAULT_FROM_EMAIL = 'Pauline Boutique <no-reply@paulineboutique.com>'
 
-# ─── INTERNATIONALISATION ───────────────────────────────────────────────
+# ─── INTERNATIONALISATION ────────────────────────────────
 LANGUAGE_CODE = 'fr-fr'
 TIME_ZONE = 'Africa/Lome'
 
 USE_I18N = True
 USE_TZ = True
 
-# ─── DEFAULT AUTO FIELD ───────────────────────────────────────────────────
+# ─── DEFAULT AUTO FIELD ──────────────────────────────────
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
