@@ -22,7 +22,7 @@ ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
     "hub-shop.onrender.com",
-    "hub-shop-hlxn.onrender.com"
+    "hub-shop-hlxn.onrender.com",
 ]
 
 # ─── APPS ────────────────────────────────────────────────
@@ -41,7 +41,7 @@ INSTALLED_APPS = [
     'boutique',
 ]
 
-# ─── MIDDLEWARE (ORDRE CORRIGÉ IMPORTANT) ────────────────
+# ─── MIDDLEWARE (CORRECT ORDER IMPORTANT) ────────────────
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
@@ -57,27 +57,24 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'config.urls'
-
 WSGI_APPLICATION = 'config.wsgi.application'
 
-# ─── DATABASE (RENDER POSTGRES) ──────────────────────────
+# ─── DATABASE ─────────────────────────────────────────────
 DATABASE_URL = os.getenv('DATABASE_URL')
 
-if DATABASE_URL:
-    DATABASES = {
-        'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600)
+DATABASES = {
+    'default': dj_database_url.parse(
+        DATABASE_URL,
+        conn_max_age=600
+    ) if DATABASE_URL else {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
-else:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
-    }
+}
 
 AUTH_USER_MODEL = 'boutique.Utilisateur'
 
-# ─── REST FRAMEWORK ──────────────────────────────────────
+# ─── REST FRAMEWORK ───────────────────────────────────────
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -93,16 +90,18 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS': True,
 }
 
-# ─── CORS (IMPORTANT POUR REACT) ──────────────────────────
+# ─── CORS (FIX IMPORTANT) ─────────────────────────────────
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:3000",
-    "https://hub-shop-hlxn.onrender.com"
+    "https://hub-shop-hlxn.onrender.com",
 ]
+
+CORS_ALLOW_ALL_ORIGINS = True  # 🔥 TEMP FIX (important pour Render)
 
 CORS_ALLOW_CREDENTIALS = True
 
-# ─── STATIC FILES (RENDER FIX) ───────────────────────────
+# ─── STATIC FILES ─────────────────────────────────────────
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'

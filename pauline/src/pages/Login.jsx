@@ -12,8 +12,8 @@ export const Login = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [success, setSuccess] = useState(false);
 
-    // ✅ FIX IMPORTANT : API dynamique (Render / dev)
-    const API_URL = import.meta.env.VITE_API_URL;
+    // ✅ SAFE API URL (fallback si env manque)
+    const API_URL = import.meta.env.VITE_API_URL || "https://hub-shop.onrender.com";
 
     const validate = () => {
         const errs = {};
@@ -21,11 +21,6 @@ export const Login = () => {
         else if (!/\S+@\S+\.\S+/.test(form.email)) errs.email = "E-mail invalide.";
         if (!form.password) errs.password = "Le mot de passe est requis.";
         return errs;
-    };
-
-    const handleChange = (e) => {
-        setForm({ ...form, [e.target.name]: e.target.value });
-        setErrors({ ...errors, [e.target.name]: '', general: '' });
     };
 
     const handleSubmit = async (e) => {
@@ -54,34 +49,26 @@ export const Login = () => {
 
             if (!res.ok) {
                 setErrors({ general: data.error || "Identifiants incorrects." });
-            } else {
-                localStorage.setItem('pauline_user', JSON.stringify(data.user));
-                localStorage.setItem('pauline_token', data.token);
-
-                setSuccess(true);
-
-                setTimeout(() => {
-                    if (data.user.role === 'admin') {
-                        navigate('/admin');
-                    } else {
-                        navigate('/');
-                    }
-                }, 1200);
+                return;
             }
+
+            localStorage.setItem('pauline_user', JSON.stringify(data.user));
+            localStorage.setItem('pauline_token', data.token);
+
+            setSuccess(true);
+
+            setTimeout(() => {
+                navigate(data.user.role === 'admin' ? '/admin' : '/');
+            }, 1000);
 
         } catch (err) {
             setErrors({
-                general: "Erreur réseau. Vérifiez que le backend Django est en ligne."
+                general: "Erreur réseau / CORS / backend non accessible."
             });
         } finally {
             setIsLoading(false);
         }
     };
-
-    const inputClass = (field) =>
-        `appearance-none block w-full px-3 py-2 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm bg-background-alt ${
-            errors[field] ? 'border-red-400' : 'border-gray-200'
-        }`;
 
     return (
         <div className="min-h-screen bg-background flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -99,12 +86,6 @@ export const Login = () => {
             <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
                 <div className="bg-surface py-8 px-4 shadow-xl sm:rounded-lg sm:px-10">
 
-                    {success && (
-                        <div className="mb-4 p-3 bg-green-50 text-green-700 text-sm text-center rounded-md">
-                            Connexion réussie...
-                        </div>
-                    )}
-
                     {errors.general && (
                         <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm text-center rounded-md">
                             {errors.general}
@@ -117,48 +98,37 @@ export const Login = () => {
                             name="email"
                             type="email"
                             value={form.email}
-                            onChange={handleChange}
+                            onChange={(e) => setForm({ ...form, email: e.target.value })}
                             placeholder="Email"
-                            className={inputClass('email')}
+                            className="w-full p-2 border rounded"
                         />
-                        {errors.email && <p className="text-red-500 text-xs">{errors.email}</p>}
 
                         <div className="relative">
                             <input
                                 name="password"
                                 type={showPassword ? 'text' : 'password'}
                                 value={form.password}
-                                onChange={handleChange}
+                                onChange={(e) => setForm({ ...form, password: e.target.value })}
                                 placeholder="Mot de passe"
-                                className={inputClass('password')}
+                                className="w-full p-2 border rounded"
                             />
 
                             <button
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-3 top-2.5 text-gray-400"
+                                className="absolute right-3 top-2 text-gray-500"
                             >
                                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                             </button>
                         </div>
 
-                        {errors.password && (
-                            <p className="text-red-500 text-xs">{errors.password}</p>
-                        )}
-
-                        <div className="text-right">
-                            <Link to="/forgot-password" className="text-sm text-primary hover:underline">
-                                Mot de passe oublié ?
-                            </Link>
-                        </div>
-
-                        <Button className="w-full py-3" disabled={isLoading || success}>
+                        <Button className="w-full py-3" disabled={isLoading}>
                             {isLoading ? 'Connexion...' : 'Se connecter'}
                         </Button>
 
                         <div className="text-center text-sm text-text-muted">
                             Pas encore de compte ?{' '}
-                            <Link to="/register" className="text-primary font-medium hover:underline">
+                            <Link to="/register" className="text-primary">
                                 Créer un compte
                             </Link>
                         </div>
