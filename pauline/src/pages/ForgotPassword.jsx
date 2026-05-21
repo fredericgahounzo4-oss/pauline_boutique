@@ -4,6 +4,8 @@ import { Button } from '../components/ui/Button';
 import { ArrowLeft, Eye, EyeOff, Mail, KeyRound, Lock } from 'lucide-react';
 import { sendResetPasswordEmail } from '../services/emailjs';
 
+const API_URL = import.meta.env.VITE_API_URL || '';
+
 // ─── Constantes ─────────────────────────────────────────────
 const STEP_EMAIL = 1;
 const STEP_CODE = 2;
@@ -50,7 +52,7 @@ export const ForgotPassword = () => {
         setError('');
 
         try {
-            const res = await fetch('/api/auth/forgot-password/', {
+            const res = await fetch(`${API_URL}/api/auth/forgot-password/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email }),
@@ -96,7 +98,7 @@ export const ForgotPassword = () => {
         setError('');
 
         try {
-            const res = await fetch('/api/auth/verify-reset-code/', {
+            const res = await fetch(`${API_URL}/api/auth/verify-reset-code/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, code }),
@@ -134,7 +136,7 @@ export const ForgotPassword = () => {
         setError('');
 
         try {
-            const res = await fetch('/api/auth/reset-password/', {
+            const res = await fetch(`${API_URL}/api/auth/reset-password/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
