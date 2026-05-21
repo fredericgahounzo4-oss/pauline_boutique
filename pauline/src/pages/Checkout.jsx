@@ -3,6 +3,8 @@ import { useCart } from '../context/CartContext';
 import { Button } from '../components/ui/Button';
 import { useNavigate, Link } from 'react-router-dom';
 
+const API_URL = import.meta.env.VITE_API_URL || '';
+
 // ─── Config FedaPay (.env) ────────────────────────────────────────────────────
 const FEDAPAY_PUBLIC_KEY = import.meta.env.VITE_FEDAPAY_PUBLIC_KEY || 'pk_sandbox_VOTRE_CLE';
 const FEDAPAY_ENV        = import.meta.env.VITE_FEDAPAY_ENV        || 'sandbox'; // 'live' en production
@@ -193,7 +195,7 @@ export const Checkout = () => {
             }
         };
 
-        const res = await fetch('/api/commandes/', {
+        const res = await fetch(`${API_URL}/api/commandes/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -214,7 +216,7 @@ export const Checkout = () => {
             id:            dbResult.commande_id.toString(),
             numero:        dbResult.numero_commande,
             transactionId: String(transactionId),
-            date:          new Date().toLocaleDateString('fr-FR', {
+            date:          new Date().toLocaleDateString('fr-FR`, {
                                year: 'numeric', month: 'long', day: 'numeric'
                            }),
             total:         cartTotal,
