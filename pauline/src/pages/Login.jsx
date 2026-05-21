@@ -8,12 +8,12 @@ export const Login = () => {
 
     const [form, setForm] = useState({ email: '', password: '' });
     const [showPassword, setShowPassword] = useState(false);
-    const [rememberMe, setRememberMe] = useState(false);
     const [errors, setErrors] = useState({});
     const [isLoading, setIsLoading] = useState(false);
     const [success, setSuccess] = useState(false);
 
-    const API_URL = 'http://127.0.0.1:8000'; // ✅ backend Django
+    // ✅ FIX IMPORTANT : API dynamique (Render / dev)
+    const API_URL = import.meta.env.VITE_API_URL;
 
     const validate = () => {
         const errs = {};
@@ -71,7 +71,7 @@ export const Login = () => {
 
         } catch (err) {
             setErrors({
-                general: "Erreur réseau. Vérifiez que le backend Django est démarré."
+                general: "Erreur réseau. Vérifiez que le backend Django est en ligne."
             });
         } finally {
             setIsLoading(false);
@@ -113,7 +113,6 @@ export const Login = () => {
 
                     <form className="space-y-6" onSubmit={handleSubmit}>
 
-                        {/* EMAIL */}
                         <input
                             name="email"
                             type="email"
@@ -124,7 +123,6 @@ export const Login = () => {
                         />
                         {errors.email && <p className="text-red-500 text-xs">{errors.email}</p>}
 
-                        {/* PASSWORD */}
                         <div className="relative">
                             <input
                                 name="password"
@@ -148,34 +146,24 @@ export const Login = () => {
                             <p className="text-red-500 text-xs">{errors.password}</p>
                         )}
 
-                        {/* MOT DE PASSE OUBLIÉ */}
                         <div className="text-right">
-                            <Link
-                                to="/forgot-password"
-                                className="text-sm text-primary hover:underline"
-                            >
+                            <Link to="/forgot-password" className="text-sm text-primary hover:underline">
                                 Mot de passe oublié ?
                             </Link>
                         </div>
 
-                        {/* SUBMIT */}
                         <Button className="w-full py-3" disabled={isLoading || success}>
                             {isLoading ? 'Connexion...' : 'Se connecter'}
                         </Button>
 
-                        {/* INSCRIPTION */}
                         <div className="text-center text-sm text-text-muted">
                             Pas encore de compte ?{' '}
-                            <Link
-                                to="/register"
-                                className="text-primary font-medium hover:underline"
-                            >
+                            <Link to="/register" className="text-primary font-medium hover:underline">
                                 Créer un compte
                             </Link>
                         </div>
 
                     </form>
-
                 </div>
             </div>
         </div>
