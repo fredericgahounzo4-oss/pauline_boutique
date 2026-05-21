@@ -9,10 +9,11 @@ export const sendResetPasswordEmail = (email, code, name) => {
         SERVICE_ID,
         TEMPLATE_ID,
         {
-            email:      email,        // {{email}}      → destinataire + répondre à
-            name:       name || 'Client', // {{name}}   → "Bonjour {{name}}"
-            reset_code: code,         // {{reset_code}} → code à 6 chiffres
-            app_name:   'Pauline Boutique', // {{app_name}} → nom de l'app
+            to_email:   email,   // champ "Envoyer par email" du template
+            email:      email,   // {{email}} dans le corps
+            name:       name || 'Client',
+            reset_code: code,
+            app_name:   'Pauline Boutique',
         },
         PUBLIC_KEY
     );

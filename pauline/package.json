@@ -12,7 +12,6 @@
   "dependencies": {
     "@emailjs/browser": "^4.4.1",
     "@tailwindcss/postcss": "^4.1.18",
-    "axios": "^1.16.1",
     "clsx": "^2.1.1",
     "fedapay": "^1.2.5",
     "framer-motion": "^12.26.1",
