@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 
+const API_URL = import.meta.env.VITE_API_URL || '';
+
 export const Register = () => {
     const navigate = useNavigate();
     const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' });
@@ -29,7 +31,6 @@ export const Register = () => {
         setErrors({ ...errors, [e.target.name]: '', general: '' });
     };
 
-    // ─── Envoi vers PHP ───────────────────────────────────────────────────────
     const handleSubmit = async (e) => {
         e.preventDefault();
         const errs = validate();
@@ -39,7 +40,7 @@ export const Register = () => {
         setErrors({});
 
         try {
-            const res = await fetch('/api/auth/register/', {
+            const res = await fetch(`${API_URL}/api/auth/register/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -55,7 +56,6 @@ export const Register = () => {
                 setErrors({ general: data.error || "Une erreur est survenue." });
             } else {
                 setSuccess(true);
-                // Rediriger vers login après 2 secondes
                 setTimeout(() => navigate('/login'), 2000);
             }
         } catch (err) {
@@ -68,7 +68,6 @@ export const Register = () => {
     const inputClass = (field) =>
         `appearance-none block w-full px-3 py-2 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm bg-background-alt ${errors[field] ? 'border-red-400' : 'border-gray-200'}`;
 
-    // Indicateur force du mot de passe
     const getPasswordStrength = () => {
         const p = form.password;
         if (!p) return null;
@@ -96,14 +95,12 @@ export const Register = () => {
             <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
                 <div className="bg-surface py-8 px-4 shadow-xl sm:rounded-lg sm:px-10 border border-gray-100">
 
-                    {/* Message succès */}
                     {success && (
                         <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md text-green-700 text-sm text-center">
                             ✅ Compte créé avec succès ! Redirection vers la connexion...
                         </div>
                     )}
 
-                    {/* Erreur générale (ex: email déjà utilisé, XAMPP éteint) */}
                     {errors.general && (
                         <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm text-center">
                             ❌ {errors.general}
@@ -111,7 +108,6 @@ export const Register = () => {
                     )}
 
                     <form className="space-y-5" onSubmit={handleSubmit}>
-                        {/* Nom */}
                         <div>
                             <label htmlFor="name" className="block text-sm font-medium text-text">Nom complet</label>
                             <div className="mt-1">
@@ -121,7 +117,6 @@ export const Register = () => {
                             </div>
                         </div>
 
-                        {/* Email */}
                         <div>
                             <label htmlFor="email" className="block text-sm font-medium text-text">Adresse e-mail</label>
                             <div className="mt-1">
@@ -131,7 +126,6 @@ export const Register = () => {
                             </div>
                         </div>
 
-                        {/* Mot de passe */}
                         <div>
                             <label htmlFor="password" className="block text-sm font-medium text-text">Mot de passe</label>
                             <div className="mt-1 relative">
@@ -144,7 +138,6 @@ export const Register = () => {
                                 </button>
                                 {errors.password && <p className="mt-1 text-xs text-red-500">{errors.password}</p>}
                             </div>
-                            {/* Barre de force */}
                             {strength && (
                                 <div className="mt-2">
                                     <div className="w-full bg-gray-200 rounded-full h-1.5">
@@ -155,7 +148,6 @@ export const Register = () => {
                             )}
                         </div>
 
-                        {/* Confirmer */}
                         <div>
                             <label htmlFor="confirm" className="block text-sm font-medium text-text">Confirmer le mot de passe</label>
                             <div className="mt-1 relative">
