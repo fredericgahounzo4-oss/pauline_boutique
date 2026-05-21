@@ -1,6 +1,5 @@
 """
-Configuration Django — Pauline Boutique
-PostgreSQL (Render)
+Django settings — Pauline Boutique (PRODUCTION READY)
 """
 from pathlib import Path
 from datetime import timedelta
@@ -12,7 +11,6 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# ─── SECURITY ─────────────────────────────────────────────
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-changez-moi')
 
 DEBUG = False
@@ -25,7 +23,6 @@ ALLOWED_HOSTS = [
     "hub-shop-hlxn.onrender.com",
 ]
 
-# ─── APPS ────────────────────────────────────────────────
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -41,7 +38,6 @@ INSTALLED_APPS = [
     'boutique',
 ]
 
-# ─── MIDDLEWARE (CORRECT ORDER IMPORTANT) ────────────────
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
@@ -59,14 +55,11 @@ MIDDLEWARE = [
 ROOT_URLCONF = 'config.urls'
 WSGI_APPLICATION = 'config.wsgi.application'
 
-# ─── DATABASE ─────────────────────────────────────────────
 DATABASE_URL = os.getenv('DATABASE_URL')
 
 DATABASES = {
-    'default': dj_database_url.parse(
-        DATABASE_URL,
-        conn_max_age=600
-    ) if DATABASE_URL else {
+    'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600)
+    if DATABASE_URL else {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
     }
@@ -74,7 +67,6 @@ DATABASES = {
 
 AUTH_USER_MODEL = 'boutique.Utilisateur'
 
-# ─── REST FRAMEWORK ───────────────────────────────────────
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -90,44 +82,25 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS': True,
 }
 
-# ─── CORS (FIX IMPORTANT) ─────────────────────────────────
+# CORS PROPRE
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:3000",
     "https://hub-shop-hlxn.onrender.com",
 ]
 
-CORS_ALLOW_ALL_ORIGINS = True  # 🔥 TEMP FIX (important pour Render)
+CSRF_TRUSTED_ORIGINS = [
+    "https://hub-shop.onrender.com",
+    "https://hub-shop-hlxn.onrender.com",
+]
 
 CORS_ALLOW_CREDENTIALS = True
 
-# ─── STATIC FILES ─────────────────────────────────────────
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# ─── MEDIA ────────────────────────────────────────────────
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# ─── EMAIL ────────────────────────────────────────────────
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
-
-DEFAULT_FROM_EMAIL = 'Pauline Boutique <no-reply@paulineboutique.com>'
-
-# ─── INTERNATIONALISATION ────────────────────────────────
-LANGUAGE_CODE = 'fr-fr'
-TIME_ZONE = 'Africa/Lome'
-
-USE_I18N = True
-USE_TZ = True
-
-# ─── DEFAULT AUTO FIELD ──────────────────────────────────
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
