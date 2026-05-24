@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+*.pyo
+pauline_shop.db
+.env
+public/images/products/uploads/

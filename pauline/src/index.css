@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@500;700&display=swap');
+
+@theme {
+  --color-primary-light: #E6C996;
+  --color-primary: #C5A065;
+  --color-primary-dark: #A6844D;
+
+  --color-secondary-light: #A8A39D;
+  --color-secondary: #8C867D;
+  --color-secondary-dark: #6E6961;
+
+  --color-background: #FAF9F6;
+  --color-background-alt: #F4F1EA;
+
+  --color-surface: #FFFFFF;
+  --color-surface-alt: #FDFCFB;
+
+  --color-text: #2D2A26;
+  --color-text-muted: #5C5852;
+
+  --font-sans: 'Inter', sans-serif;
+  --font-serif: 'Outfit', sans-serif;
+  /* Mapped to Heading Font */
+}
