@@ -3,5 +3,4 @@ djangorestframework>=3.14
 django-cors-headers>=4.0
 bcrypt>=4.0
 Pillow>=10.0
-# Pour MySQL (optionnel, SQLite par défaut) :
-# mysqlclient>=2.2
+gunicorn>=21.0
