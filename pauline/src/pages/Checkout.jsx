@@ -1,3 +1,4 @@
+import { apiUrl } from '../utils/api';
 import { useState, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
 import { Button } from '../components/ui/Button';
