@@ -3,18 +3,16 @@ import hashlib
 import secrets
 from django.db import transaction
 from django.db.models import Count, Sum, Q
-from django.core.files.storage import default_storage
 from django.conf import settings
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from rest_framework import status
 import bcrypt
 import os
-import time
-import random
+import cloudinary
+import cloudinary.uploader
 from pathlib import Path
 
-from .models import Categorie, Produit, ProduitImage, Utilisateur, Commande, CommandeItem
+from .models import Categorie, Produit, ProduitImage, Utilisateur, Commande, CommandeItem, PasswordResetToken
 from .serializers import (
     ProduitSerializer, ProduitAdminSerializer,
     CommandeSerializer, CategorieSerializer
@@ -24,7 +22,6 @@ from .serializers import (
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 def hash_password(password: str) -> str:
-    """bcrypt — compatible avec les mots de passe PHP bcrypt"""
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 
@@ -44,6 +41,19 @@ def generate_numero_commande() -> str:
     year = datetime.datetime.now().year
     suffix = hashlib.md5(str(uuid.uuid4()).encode()).hexdigest()[:8].upper()
     return f"CMD-{year}-{suffix}"
+
+
+def upload_to_cloudinary(image_file):
+    """Upload image vers Cloudinary et retourne l'URL sécurisée"""
+    result = cloudinary.uploader.upload(
+        image_file,
+        folder='pauline_boutique/products',
+        transformation=[
+            {'width': 800, 'height': 800, 'crop': 'limit',
+             'quality': 'auto', 'fetch_format': 'auto'}
+        ]
+    )
+    return result.get('secure_url')
 
 
 # ─── AUTH : /api/auth/login ───────────────────────────────────────────────────
@@ -119,6 +129,84 @@ def register(request):
             "role": user.role,
         }
     }, status=201)
+
+
+# ─── AUTH : check-email / reset-password ─────────────────────────────────────
+
+@api_view(['POST', 'OPTIONS'])
+def check_email(request):
+    email = (request.data.get('email') or '').strip()
+    if not email:
+        return Response({"exists": False})
+    try:
+        user = Utilisateur.objects.get(email=email, actif=True)
+        return Response({"exists": True, "nom": user.nom})
+    except Utilisateur.DoesNotExist:
+        return Response({"exists": False})
+
+
+@api_view(['POST', 'OPTIONS'])
+def reset_password(request):
+    email        = (request.data.get('email') or '').strip()
+    new_password = request.data.get('new_password') or ''
+    if not email or not new_password:
+        return Response({"success": False}, status=400)
+    try:
+        user = Utilisateur.objects.get(email=email, actif=True)
+    except Utilisateur.DoesNotExist:
+        return Response({"success": False}, status=404)
+    user.mot_de_passe = hash_password(new_password)
+    user.save()
+    return Response({"success": True})
+
+
+@api_view(['POST', 'OPTIONS'])
+def forgot_password(request):
+    import datetime
+    from django.utils import timezone
+    email = (request.data.get('email') or '').strip()
+    if not email:
+        return Response({"success": False, "error": "E-mail requis."}, status=400)
+    try:
+        user = Utilisateur.objects.get(email=email, actif=True)
+    except Utilisateur.DoesNotExist:
+        return Response({"success": False, "error": "Aucun compte trouvé."}, status=404)
+    PasswordResetToken.objects.filter(utilisateur=user, used=False).delete()
+    token = secrets.token_hex(32)
+    expire = timezone.now() + datetime.timedelta(minutes=30)
+    PasswordResetToken.objects.create(utilisateur=user, token=token, expire_at=expire)
+    return Response({"success": True, "token": token, "nom": user.nom})
+
+
+@api_view(['POST', 'OPTIONS'])
+def verify_reset_token(request):
+    token = (request.data.get('token') or '').strip()
+    if not token:
+        return Response({"valid": False})
+    try:
+        t = PasswordResetToken.objects.get(token=token)
+        return Response({"valid": t.is_valid()})
+    except PasswordResetToken.DoesNotExist:
+        return Response({"valid": False})
+
+
+@api_view(['POST', 'OPTIONS'])
+def reset_password_token(request):
+    token        = (request.data.get('token') or '').strip()
+    new_password = request.data.get('new_password') or ''
+    if not token or not new_password or len(new_password) < 8:
+        return Response({"success": False, "error": "Données invalides."}, status=400)
+    try:
+        t = PasswordResetToken.objects.get(token=token)
+    except PasswordResetToken.DoesNotExist:
+        return Response({"success": False, "error": "Token invalide."}, status=404)
+    if not t.is_valid():
+        return Response({"success": False, "error": "Lien expiré."}, status=400)
+    t.utilisateur.mot_de_passe = hash_password(new_password)
+    t.utilisateur.save()
+    t.used = True
+    t.save()
+    return Response({"success": True})
 
 
 # ─── PRODUITS : /api/produits/list ────────────────────────────────────────────
@@ -210,7 +298,7 @@ def commandes_create(request):
     })
 
 
-# ─── ADMIN : /api/admin/stats ─────────────────────────────────────────────────
+# ─── ADMIN : stats ────────────────────────────────────────────────────────────
 
 @api_view(['GET', 'OPTIONS'])
 def admin_stats(request):
@@ -244,7 +332,7 @@ def admin_stats(request):
     })
 
 
-# ─── ADMIN : /api/admin/commandes ────────────────────────────────────────────
+# ─── ADMIN : commandes ────────────────────────────────────────────────────────
 
 @api_view(['GET', 'OPTIONS'])
 def admin_commandes_list(request):
@@ -256,8 +344,6 @@ def admin_commandes_list(request):
         "total": qs.count()
     })
 
-
-# ─── ADMIN : /api/admin/commande-statut ──────────────────────────────────────
 
 @api_view(['POST', 'OPTIONS'])
 def admin_commande_statut(request):
@@ -281,7 +367,7 @@ def admin_commande_statut(request):
     return Response({"success": True, "message": f"Statut mis à jour : {statut}"})
 
 
-# ─── ADMIN : /api/admin/produits ─────────────────────────────────────────────
+# ─── ADMIN : produits ─────────────────────────────────────────────────────────
 
 @api_view(['GET', 'OPTIONS'])
 def admin_produits_list(request):
@@ -293,8 +379,6 @@ def admin_produits_list(request):
         "total": qs.count()
     })
 
-
-# ─── ADMIN : /api/admin/produits/add ─────────────────────────────────────────
 
 @api_view(['POST', 'OPTIONS'])
 def admin_produits_add(request):
@@ -312,41 +396,27 @@ def admin_produits_add(request):
     except Categorie.DoesNotExist:
         return Response({"error": "Catégorie invalide."}, status=400)
 
-    image_path = None
+    # ── Upload image vers Cloudinary ──
+    image_url = None
     if 'image' in request.FILES:
-        image_file = request.FILES['image']
-        ext = image_file.name.rsplit('.', 1)[-1].lower()
-        allowed = ['jpg', 'jpeg', 'png', 'webp']
-        if ext not in allowed:
-            return Response({"error": "Format image non autorisé. Utilisez JPG, PNG ou WEBP."}, status=400)
-
-        upload_dir = Path(settings.MEDIA_ROOT) / 'products' / 'uploads'
-        upload_dir.mkdir(parents=True, exist_ok=True)
-
-        filename = f"prod_{int(time.time())}_{random.randint(1000, 9999)}.{ext}"
-        dest = upload_dir / filename
-
-        with open(dest, 'wb') as f:
-            for chunk in image_file.chunks():
-                f.write(chunk)
-
-        image_path = f"/images/products/uploads/{filename}"
+        try:
+            image_url = upload_to_cloudinary(request.FILES['image'])
+        except Exception as e:
+            return Response({"error": f"Erreur upload image : {str(e)}"}, status=500)
 
     produit = Produit.objects.create(
         nom=nom, description=description, prix=prix,
         stock=stock, categorie=categorie,
-        image_principale=image_path, actif=True
+        image_principale=image_url, actif=True
     )
 
     return Response({
         "success": True,
         "message": "Produit ajouté avec succès.",
         "id": produit.id,
-        "image": image_path
+        "image": image_url
     })
 
-
-# ─── ADMIN : /api/admin/produits/edit ────────────────────────────────────────
 
 @api_view(['POST', 'OPTIONS'])
 def admin_produits_edit(request):
@@ -359,20 +429,14 @@ def admin_produits_edit(request):
     except Produit.DoesNotExist:
         return Response({"error": "Produit introuvable."}, status=404)
 
-    image_path = produit.image_principale
+    image_url = produit.image_principale
 
+    # ── Upload nouvelle image vers Cloudinary si fournie ──
     if 'image' in request.FILES:
-        image_file = request.FILES['image']
-        ext = image_file.name.rsplit('.', 1)[-1].lower()
-        if ext in ['jpg', 'jpeg', 'png', 'webp']:
-            upload_dir = Path(settings.MEDIA_ROOT) / 'products' / 'uploads'
-            upload_dir.mkdir(parents=True, exist_ok=True)
-            filename = f"prod_{int(time.time())}_{random.randint(1000, 9999)}.{ext}"
-            dest = upload_dir / filename
-            with open(dest, 'wb') as f:
-                for chunk in image_file.chunks():
-                    f.write(chunk)
-            image_path = f"/images/products/uploads/{filename}"
+        try:
+            image_url = upload_to_cloudinary(request.FILES['image'])
+        except Exception as e:
+            return Response({"error": f"Erreur upload image : {str(e)}"}, status=500)
 
     produit.nom = (request.data.get('nom') or request.POST.get('nom') or produit.nom).strip()
     produit.description = (request.data.get('description') or request.POST.get('description') or produit.description or '').strip()
@@ -383,18 +447,18 @@ def admin_produits_edit(request):
         produit.categorie = Categorie.objects.get(id=cat_id)
     except Categorie.DoesNotExist:
         pass
-    produit.image_principale = image_path
-    produit.actif = bool(int(request.data.get('actif') or request.POST.get('actif') or produit.actif))
+    produit.image_principale = image_url
+    actif_val = request.data.get('actif') or request.POST.get('actif')
+    if actif_val is not None:
+        produit.actif = bool(int(actif_val))
     produit.save()
 
     return Response({
         "success": True,
         "message": "Produit modifié avec succès.",
-        "image": image_path
+        "image": image_url
     })
 
-
-# ─── ADMIN : /api/admin/produits/delete ──────────────────────────────────────
 
 @api_view(['POST', 'OPTIONS'])
 def admin_produits_delete(request):
@@ -407,14 +471,13 @@ def admin_produits_delete(request):
     except Produit.DoesNotExist:
         return Response({"error": "Produit introuvable."}, status=404)
 
-    # Désactiver plutôt que supprimer (préserve l'historique des commandes)
     produit.actif = False
     produit.save()
 
     return Response({"success": True, "message": "Produit supprimé avec succès."})
 
 
-# ─── CATEGORIES : /api/categories ────────────────────────────────────────────
+# ─── CATEGORIES ───────────────────────────────────────────────────────────────
 
 @api_view(['GET', 'OPTIONS'])
 def categories_list(request):
@@ -423,101 +486,3 @@ def categories_list(request):
         "success": True,
         "categories": CategorieSerializer(cats, many=True).data
     })
-
-
-@api_view(['POST', 'OPTIONS'])
-def check_email(request):
-    email = (request.data.get('email') or '').strip()
-    if not email:
-        return Response({"exists": False})
-    try:
-        user = Utilisateur.objects.get(email=email, actif=True)
-        return Response({"exists": True, "nom": user.nom})
-    except Utilisateur.DoesNotExist:
-        return Response({"exists": False})
-
-
-@api_view(['POST', 'OPTIONS'])
-def reset_password(request):
-    email        = (request.data.get('email') or '').strip()
-    new_password = request.data.get('new_password') or ''
-    if not email or not new_password:
-        return Response({"success": False}, status=400)
-    try:
-        user = Utilisateur.objects.get(email=email, actif=True)
-    except Utilisateur.DoesNotExist:
-        return Response({"success": False}, status=404)
-    user.mot_de_passe = hash_password(new_password)
-    user.save()
-    return Response({"success": True})
-
-# ─── AUTH : /api/auth/forgot-password ────────────────────────────────────────
-
-@api_view(['POST', 'OPTIONS'])
-def forgot_password(request):
-    import datetime
-    from django.utils import timezone
-    from .models import PasswordResetToken
-
-    email = (request.data.get('email') or '').strip()
-    if not email:
-        return Response({"success": False, "error": "E-mail requis."}, status=400)
-
-    try:
-        user = Utilisateur.objects.get(email=email, actif=True)
-    except Utilisateur.DoesNotExist:
-        return Response({"success": False, "error": "Aucun compte trouvé avec cet e-mail."}, status=404)
-
-    # Supprimer les anciens tokens non utilisés
-    PasswordResetToken.objects.filter(utilisateur=user, used=False).delete()
-
-    # Créer un nouveau token valide 30 minutes
-    token = secrets.token_hex(32)
-    expire = timezone.now() + datetime.timedelta(minutes=30)
-    PasswordResetToken.objects.create(utilisateur=user, token=token, expire_at=expire)
-
-    return Response({"success": True, "token": token, "nom": user.nom})
-
-
-# ─── AUTH : /api/auth/verify-reset-token ─────────────────────────────────────
-
-@api_view(['POST', 'OPTIONS'])
-def verify_reset_token(request):
-    from .models import PasswordResetToken
-
-    token = (request.data.get('token') or '').strip()
-    if not token:
-        return Response({"valid": False})
-    try:
-        t = PasswordResetToken.objects.get(token=token)
-        return Response({"valid": t.is_valid()})
-    except PasswordResetToken.DoesNotExist:
-        return Response({"valid": False})
-
-
-# ─── AUTH : /api/auth/reset-password-token ───────────────────────────────────
-
-@api_view(['POST', 'OPTIONS'])
-def reset_password_token(request):
-    from .models import PasswordResetToken
-
-    token        = (request.data.get('token') or '').strip()
-    new_password = request.data.get('new_password') or ''
-
-    if not token or not new_password or len(new_password) < 8:
-        return Response({"success": False, "error": "Données invalides."}, status=400)
-
-    try:
-        t = PasswordResetToken.objects.get(token=token)
-    except PasswordResetToken.DoesNotExist:
-        return Response({"success": False, "error": "Token invalide."}, status=404)
-
-    if not t.is_valid():
-        return Response({"success": False, "error": "Lien expiré ou déjà utilisé."}, status=400)
-
-    t.utilisateur.mot_de_passe = hash_password(new_password)
-    t.utilisateur.save()
-    t.used = True
-    t.save()
-
-    return Response({"success": True, "message": "Mot de passe réinitialisé avec succès."})

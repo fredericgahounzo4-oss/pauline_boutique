@@ -1,10 +1,10 @@
 from pathlib import Path
 import os
+import cloudinary
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-pauline-boutique-change-in-production-xyz123')
-
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = [
@@ -97,3 +97,11 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [],
     'DEFAULT_RENDERER_CLASSES': ['rest_framework.renderers.JSONRenderer'],
 }
+
+# ── CLOUDINARY ────────────────────────────────────────────────────────────────
+cloudinary.config(
+    cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME', 'dwpmqngue'),
+    api_key    = os.environ.get('CLOUDINARY_API_KEY', '265435997616125'),
+    api_secret = os.environ.get('CLOUDINARY_API_SECRET', 'bGol_JagmpIvXOqbt2elFQBpgMs'),
+    secure     = True
+)
