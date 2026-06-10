@@ -44,7 +44,6 @@ def generate_numero_commande() -> str:
 
 
 def upload_to_cloudinary(image_file):
-    """Upload image vers Cloudinary et retourne l'URL sécurisée"""
     result = cloudinary.uploader.upload(
         image_file,
         folder='pauline_boutique/products',
@@ -56,7 +55,7 @@ def upload_to_cloudinary(image_file):
     return result.get('secure_url')
 
 
-# ─── AUTH : /api/auth/login ───────────────────────────────────────────────────
+# ─── AUTH ─────────────────────────────────────────────────────────────────────
 
 @api_view(['POST', 'OPTIONS'])
 def login(request):
@@ -75,21 +74,12 @@ def login(request):
     if not verify_password(password, user.mot_de_passe):
         return Response({"error": "E-mail ou mot de passe incorrect."}, status=401)
 
-    token = generate_token()
-
     return Response({
         "success": True,
-        "token": token,
-        "user": {
-            "id": user.id,
-            "nom": user.nom,
-            "email": user.email,
-            "role": user.role,
-        }
+        "token": generate_token(),
+        "user": {"id": user.id, "nom": user.nom, "email": user.email, "role": user.role}
     })
 
-
-# ─── AUTH : /api/auth/register ────────────────────────────────────────────────
 
 @api_view(['POST', 'OPTIONS'])
 def register(request):
@@ -99,16 +89,11 @@ def register(request):
     password = data.get('password') or ''
 
     errors = []
-    if not nom:
-        errors.append("Le nom est requis.")
-    if not email:
-        errors.append("L'e-mail est requis.")
-    elif '@' not in email or '.' not in email:
-        errors.append("L'adresse e-mail est invalide.")
-    if not password:
-        errors.append("Le mot de passe est requis.")
-    elif len(password) < 8:
-        errors.append("Le mot de passe doit contenir au moins 8 caractères.")
+    if not nom: errors.append("Le nom est requis.")
+    if not email: errors.append("L'e-mail est requis.")
+    elif '@' not in email or '.' not in email: errors.append("L'adresse e-mail est invalide.")
+    if not password: errors.append("Le mot de passe est requis.")
+    elif len(password) < 8: errors.append("Le mot de passe doit contenir au moins 8 caractères.")
 
     if errors:
         return Response({"error": " ".join(errors)}, status=400)
@@ -116,22 +101,14 @@ def register(request):
     if Utilisateur.objects.filter(email=email).exists():
         return Response({"error": "Cet e-mail est déjà utilisé. Connectez-vous."}, status=409)
 
-    hashed = hash_password(password)
-    user = Utilisateur.objects.create(nom=nom, email=email, mot_de_passe=hashed, role='client')
+    user = Utilisateur.objects.create(nom=nom, email=email, mot_de_passe=hash_password(password), role='client')
 
     return Response({
         "success": True,
         "message": "Compte créé avec succès !",
-        "user": {
-            "id": user.id,
-            "nom": user.nom,
-            "email": user.email,
-            "role": user.role,
-        }
+        "user": {"id": user.id, "nom": user.nom, "email": user.email, "role": user.role}
     }, status=201)
 
-
-# ─── AUTH : check-email / reset-password ─────────────────────────────────────
 
 @api_view(['POST', 'OPTIONS'])
 def check_email(request):
@@ -209,7 +186,7 @@ def reset_password_token(request):
     return Response({"success": True})
 
 
-# ─── PRODUITS : /api/produits/list ────────────────────────────────────────────
+# ─── PRODUITS ─────────────────────────────────────────────────────────────────
 
 @api_view(['GET', 'OPTIONS'])
 def produits_list(request):
@@ -220,21 +197,14 @@ def produits_list(request):
 
     if categorie_slug:
         qs = qs.filter(categorie__slug=categorie_slug)
-
     if search:
         qs = qs.filter(Q(nom__icontains=search) | Q(description__icontains=search))
 
     qs = qs.order_by('id')
-    serializer = ProduitSerializer(qs, many=True)
-
-    return Response({
-        "success": True,
-        "produits": serializer.data,
-        "total": qs.count()
-    })
+    return Response({"success": True, "produits": ProduitSerializer(qs, many=True).data, "total": qs.count()})
 
 
-# ─── COMMANDES : /api/commandes/create ────────────────────────────────────────
+# ─── COMMANDES ────────────────────────────────────────────────────────────────
 
 @api_view(['POST', 'OPTIONS'])
 def commandes_create(request):
@@ -262,14 +232,10 @@ def commandes_create(request):
                     pass
 
             commande = Commande.objects.create(
-                utilisateur=utilisateur,
-                numero_commande=numero,
-                montant_total=montant,
-                methode_paiement=methode,
-                operateur_mobile=operateur,
-                transaction_id=transaction_id,
-                adresse_livraison=adresse,
-                statut='payee',
+                utilisateur=utilisateur, numero_commande=numero,
+                montant_total=montant, methode_paiement=methode,
+                operateur_mobile=operateur, transaction_id=transaction_id,
+                adresse_livraison=adresse, statut='payee',
             )
 
             for item in items:
@@ -280,22 +246,16 @@ def commandes_create(request):
                     pass
 
                 CommandeItem.objects.create(
-                    commande=commande,
-                    produit=produit,
+                    commande=commande, produit=produit,
                     nom_produit=item.get('name', 'Produit'),
                     prix_unit=float(item.get('price', 0)),
                     quantite=int(item.get('quantity', 1)),
                 )
 
     except Exception as e:
-        return Response({"error": f"Erreur lors de l'enregistrement : {str(e)}"}, status=500)
+        return Response({"error": f"Erreur : {str(e)}"}, status=500)
 
-    return Response({
-        "success": True,
-        "commande_id": commande.id,
-        "numero_commande": numero,
-        "message": "Commande enregistrée avec succès."
-    })
+    return Response({"success": True, "commande_id": commande.id, "numero_commande": numero})
 
 
 # ─── ADMIN : stats ────────────────────────────────────────────────────────────
@@ -305,29 +265,19 @@ def admin_stats(request):
     nb_produits = Produit.objects.filter(actif=True).count()
     nb_clients = Utilisateur.objects.filter(role='client').count()
     nb_commandes = Commande.objects.count()
-    chiffre_affaires = Commande.objects.exclude(statut='annulee').aggregate(
-        total=Sum('montant_total')
-    )['total'] or 0
+    chiffre_affaires = Commande.objects.exclude(statut='annulee').aggregate(total=Sum('montant_total'))['total'] or 0
 
     dernieres = Commande.objects.select_related('utilisateur').order_by('-created_at')[:5]
     dernieres_data = [
-        {
-            "id": c.id,
-            "numero_commande": c.numero_commande,
-            "statut": c.statut,
-            "montant_total": float(c.montant_total),
-            "created_at": c.created_at.isoformat(),
-            "client_nom": c.utilisateur.nom if c.utilisateur else None,
-        }
+        {"id": c.id, "numero_commande": c.numero_commande, "statut": c.statut,
+         "montant_total": float(c.montant_total), "created_at": c.created_at.isoformat(),
+         "client_nom": c.utilisateur.nom if c.utilisateur else None}
         for c in dernieres
     ]
 
     return Response({
-        "success": True,
-        "nb_produits": nb_produits,
-        "nb_clients": nb_clients,
-        "nb_commandes": nb_commandes,
-        "chiffre_affaires": float(chiffre_affaires),
+        "success": True, "nb_produits": nb_produits, "nb_clients": nb_clients,
+        "nb_commandes": nb_commandes, "chiffre_affaires": float(chiffre_affaires),
         "dernieres_commandes": dernieres_data,
     })
 
@@ -337,20 +287,13 @@ def admin_stats(request):
 @api_view(['GET', 'OPTIONS'])
 def admin_commandes_list(request):
     qs = Commande.objects.select_related('utilisateur').prefetch_related('items').order_by('-created_at')
-    serializer = CommandeSerializer(qs, many=True)
-    return Response({
-        "success": True,
-        "commandes": serializer.data,
-        "total": qs.count()
-    })
+    return Response({"success": True, "commandes": CommandeSerializer(qs, many=True).data, "total": qs.count()})
 
 
 @api_view(['POST', 'OPTIONS'])
 def admin_commande_statut(request):
-    data = request.data
-    commande_id = int(data.get('id', 0) or 0)
-    statut = (data.get('statut') or '').strip()
-
+    commande_id = int(request.data.get('id', 0) or 0)
+    statut = (request.data.get('statut') or '').strip()
     statuts_valides = ['en_attente', 'payee', 'en_cours', 'livree', 'annulee']
 
     if not commande_id or statut not in statuts_valides:
@@ -363,8 +306,7 @@ def admin_commande_statut(request):
 
     commande.statut = statut
     commande.save()
-
-    return Response({"success": True, "message": f"Statut mis à jour : {statut}"})
+    return Response({"success": True})
 
 
 # ─── ADMIN : produits ─────────────────────────────────────────────────────────
@@ -372,20 +314,15 @@ def admin_commande_statut(request):
 @api_view(['GET', 'OPTIONS'])
 def admin_produits_list(request):
     qs = Produit.objects.select_related('categorie').order_by('-id')
-    serializer = ProduitAdminSerializer(qs, many=True)
-    return Response({
-        "success": True,
-        "produits": serializer.data,
-        "total": qs.count()
-    })
+    return Response({"success": True, "produits": ProduitAdminSerializer(qs, many=True).data, "total": qs.count()})
 
 
 @api_view(['POST', 'OPTIONS'])
 def admin_produits_add(request):
-    nom = (request.data.get('nom') or request.POST.get('nom') or '').strip()
-    description = (request.data.get('description') or request.POST.get('description') or '').strip()
-    prix = float(request.data.get('prix') or request.POST.get('prix') or 0)
-    stock = int(request.data.get('stock') or request.POST.get('stock') or 0)
+    nom          = (request.data.get('nom') or request.POST.get('nom') or '').strip()
+    description  = (request.data.get('description') or request.POST.get('description') or '').strip()
+    prix         = float(request.data.get('prix') or request.POST.get('prix') or 0)
+    stock        = int(request.data.get('stock') or request.POST.get('stock') or 0)
     categorie_id = int(request.data.get('categorie_id') or request.POST.get('categorie_id') or 0)
 
     if not nom or prix <= 0 or not categorie_id:
@@ -396,7 +333,6 @@ def admin_produits_add(request):
     except Categorie.DoesNotExist:
         return Response({"error": "Catégorie invalide."}, status=400)
 
-    # ── Upload image vers Cloudinary ──
     image_url = None
     if 'image' in request.FILES:
         try:
@@ -410,12 +346,7 @@ def admin_produits_add(request):
         image_principale=image_url, actif=True
     )
 
-    return Response({
-        "success": True,
-        "message": "Produit ajouté avec succès.",
-        "id": produit.id,
-        "image": image_url
-    })
+    return Response({"success": True, "message": "Produit ajouté.", "id": produit.id, "image": image_url})
 
 
 @api_view(['POST', 'OPTIONS'])
@@ -429,35 +360,41 @@ def admin_produits_edit(request):
     except Produit.DoesNotExist:
         return Response({"error": "Produit introuvable."}, status=404)
 
+    # Image — garder l'ancienne si pas de nouvelle
     image_url = produit.image_principale
-
-    # ── Upload nouvelle image vers Cloudinary si fournie ──
     if 'image' in request.FILES:
         try:
             image_url = upload_to_cloudinary(request.FILES['image'])
         except Exception as e:
             return Response({"error": f"Erreur upload image : {str(e)}"}, status=500)
 
-    produit.nom = (request.data.get('nom') or request.POST.get('nom') or produit.nom).strip()
+    produit.nom         = (request.data.get('nom') or request.POST.get('nom') or produit.nom).strip()
     produit.description = (request.data.get('description') or request.POST.get('description') or produit.description or '').strip()
-    produit.prix = float(request.data.get('prix') or request.POST.get('prix') or produit.prix)
-    produit.stock = int(request.data.get('stock') or request.POST.get('stock') or produit.stock)
+    produit.prix        = float(request.data.get('prix') or request.POST.get('prix') or produit.prix)
+    produit.stock       = int(request.data.get('stock') or request.POST.get('stock') or produit.stock)
+
     cat_id = int(request.data.get('categorie_id') or request.POST.get('categorie_id') or produit.categorie_id)
     try:
         produit.categorie = Categorie.objects.get(id=cat_id)
     except Categorie.DoesNotExist:
         pass
+
     produit.image_principale = image_url
-    actif_val = request.data.get('actif') or request.POST.get('actif')
+
+    # ── Correction du champ actif ──────────────────────────────────────────────
+    if 'actif' in request.data:
+        actif_val = request.data.get('actif')
+    elif 'actif' in request.POST:
+        actif_val = request.POST.get('actif')
+    else:
+        actif_val = None
+
     if actif_val is not None:
-        produit.actif = bool(int(actif_val))
+        produit.actif = str(actif_val) in ['1', 'true', 'True', True]
+
     produit.save()
 
-    return Response({
-        "success": True,
-        "message": "Produit modifié avec succès.",
-        "image": image_url
-    })
+    return Response({"success": True, "message": "Produit modifié.", "image": image_url})
 
 
 @api_view(['POST', 'OPTIONS'])
@@ -473,8 +410,7 @@ def admin_produits_delete(request):
 
     produit.actif = False
     produit.save()
-
-    return Response({"success": True, "message": "Produit supprimé avec succès."})
+    return Response({"success": True, "message": "Produit supprimé."})
 
 
 # ─── CATEGORIES ───────────────────────────────────────────────────────────────
@@ -482,7 +418,4 @@ def admin_produits_delete(request):
 @api_view(['GET', 'OPTIONS'])
 def categories_list(request):
     cats = Categorie.objects.all()
-    return Response({
-        "success": True,
-        "categories": CategorieSerializer(cats, many=True).data
-    })
+    return Response({"success": True, "categories": CategorieSerializer(cats, many=True).data})
