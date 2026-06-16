@@ -346,7 +346,17 @@ def admin_produits_add(request):
         image_principale=image_url, actif=True
     )
 
-    return Response({"success": True, "message": "Produit ajouté.", "id": produit.id, "image": image_url})
+    # Lire actif depuis le formulaire si fourni
+    actif_val = request.data.get('actif') or request.POST.get('actif')
+    if actif_val is not None:
+        produit.actif = str(actif_val) in ['1', 'true', 'True']
+        produit.save()
+
+    return Response({
+        'success': True, 'message': 'Produit ajouté.', 'id': produit.id, 'image': image_url
+    })
+
+
 
 
 @api_view(['POST', 'OPTIONS'])
@@ -390,7 +400,7 @@ def admin_produits_edit(request):
         actif_val = None
 
     if actif_val is not None:
-        produit.actif = str(actif_val) in ['1', 'true', 'True', True]
+        produit.actif = str(actif_val) in ["1", "true", "True"]
 
     produit.save()
 
