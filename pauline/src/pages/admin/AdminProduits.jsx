@@ -8,17 +8,17 @@ const initialForm = {
 };
 
 export const AdminProduits = () => {
-    const [produits, setProduits]   = useState([]);
+    const [produits, setProduits]     = useState([]);
     const [categories, setCategories] = useState([]);
-    const [loading, setLoading]     = useState(true);
-    const [error, setError]         = useState('');
-    const [success, setSuccess]     = useState('');
-    const [showModal, setShowModal] = useState(false);
-    const [editId, setEditId]       = useState(null);
-    const [form, setForm]           = useState(initialForm);
-    const [preview, setPreview]     = useState(null);
-    const [saving, setSaving]       = useState(false);
-    const [search, setSearch]       = useState('');
+    const [loading, setLoading]       = useState(true);
+    const [error, setError]           = useState('');
+    const [success, setSuccess]       = useState('');
+    const [showModal, setShowModal]   = useState(false);
+    const [editId, setEditId]         = useState(null);
+    const [form, setForm]             = useState(initialForm);
+    const [preview, setPreview]       = useState(null);
+    const [saving, setSaving]         = useState(false);
+    const [search, setSearch]         = useState('');
 
     const loadProduits = () => {
         setLoading(true);
@@ -51,7 +51,7 @@ export const AdminProduits = () => {
             stock:        p.stock,
             categorie_id: p.categorie_id,
             image:        null,
-            actif:        p.actif
+            actif:        p.actif ? 1 : 0   // ← FIX: convertir boolean en 0/1
         });
         setPreview(p.image_principale);
         setShowModal(true);
@@ -76,7 +76,7 @@ export const AdminProduits = () => {
         fd.append('prix',         form.prix);
         fd.append('stock',        form.stock);
         fd.append('categorie_id', form.categorie_id);
-        fd.append('actif',        form.actif);
+        fd.append('actif',        form.actif);  // envoie 0 ou 1
         if (form.image) fd.append('image', form.image);
         if (editId)     fd.append('id', editId);
 
@@ -276,7 +276,8 @@ export const AdminProduits = () => {
                                 </select>
                             </div>
                             <div className="flex items-center gap-3">
-                                <input type="checkbox" id="actif" checked={form.actif === 1}
+                                <input type="checkbox" id="actif"
+                                    checked={form.actif === 1 || form.actif === true}
                                     onChange={e => setForm(f => ({ ...f, actif: e.target.checked ? 1 : 0 }))}
                                     className="h-4 w-4 text-primary rounded" />
                                 <label htmlFor="actif" className="text-sm text-text">Visible dans la boutique</label>
