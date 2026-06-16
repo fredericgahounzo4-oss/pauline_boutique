@@ -1,6 +1,7 @@
 from pathlib import Path
 import os
 import cloudinary
+import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -56,11 +57,18 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'pauline_api.wsgi.application'
 
+# ── DATABASE ──────────────────────────────────────────────────────────────────
+DATABASE_URL = os.environ.get(
+    'DATABASE_URL',
+    'postgresql://postgres:freDERIC024%4024@db.kipceqhryvxvwoltgwuv.supabase.co:5432/postgres'
+)
+
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'pauline_shop.db',
-    }
+    'default': dj_database_url.config(
+        default=DATABASE_URL,
+        conn_max_age=600,
+        ssl_require=True,
+    )
 }
 
 AUTH_PASSWORD_VALIDATORS = [
