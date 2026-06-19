@@ -12,7 +12,7 @@ import cloudinary
 import cloudinary.uploader
 from pathlib import Path
 
-from .models import Categorie, Produit, ProduitImage, Utilisateur, Commande, CommandeItem, PasswordResetToken
+from .models import Categorie, Produit, ProduitImage, Utilisateur, Commande, CommandeItem, PasswordResetToken, Avis
 from .serializers import (
     ProduitSerializer, ProduitAdminSerializer,
     CommandeSerializer, CategorieSerializer
@@ -429,3 +429,80 @@ def admin_produits_delete(request):
 def categories_list(request):
     cats = Categorie.objects.all()
     return Response({"success": True, "categories": CategorieSerializer(cats, many=True).data})
+
+
+# ─── AVIS : /api/produits/<id>/avis ──────────────────────────────────────────
+
+@api_view(['GET', 'OPTIONS'])
+def produit_avis_list(request, produit_id):
+    try:
+        produit = Produit.objects.get(id=produit_id, actif=True)
+    except Produit.DoesNotExist:
+        return Response({"success": False, "error": "Produit introuvable."}, status=404)
+
+    avis = produit.avis.select_related('utilisateur').order_by('-created_at')
+    data = [
+        {
+            "id":          a.id,
+            "note":        a.note,
+            "commentaire": a.commentaire,
+            "auteur":      a.utilisateur.nom,
+            "created_at":  a.created_at.isoformat(),
+        }
+        for a in avis
+    ]
+
+    return Response({
+        "success":      True,
+        "avis":         data,
+        "total":        len(data),
+        "note_moyenne": float(produit.note_moyenne),
+        "nombre_avis":  produit.nombre_avis,
+    })
+
+
+# ─── AVIS : /api/produits/avis/add ───────────────────────────────────────────
+
+@api_view(['POST', 'OPTIONS'])
+def produit_avis_add(request):
+    from django.db.models import Avg
+
+    utilisateur_id = request.data.get('utilisateur_id')
+    produit_id     = request.data.get('produit_id')
+    note           = int(request.data.get('note', 0) or 0)
+    commentaire    = (request.data.get('commentaire') or '').strip()
+
+    if not utilisateur_id:
+        return Response({"success": False, "error": "Vous devez être connecté."}, status=401)
+
+    if not produit_id or not (1 <= note <= 5):
+        return Response({"success": False, "error": "Note invalide (1 à 5 requis)."}, status=400)
+
+    try:
+        utilisateur = Utilisateur.objects.get(id=utilisateur_id, actif=True)
+    except Utilisateur.DoesNotExist:
+        return Response({"success": False, "error": "Utilisateur introuvable."}, status=404)
+
+    try:
+        produit = Produit.objects.get(id=produit_id, actif=True)
+    except Produit.DoesNotExist:
+        return Response({"success": False, "error": "Produit introuvable."}, status=404)
+
+    avis, created = Avis.objects.update_or_create(
+        produit=produit,
+        utilisateur=utilisateur,
+        defaults={"note": note, "commentaire": commentaire}
+    )
+
+    stats = Avis.objects.filter(produit=produit).aggregate(moyenne=Avg('note'))
+    produit.note_moyenne = round(stats['moyenne'] or 0, 2)
+    produit.nombre_avis  = Avis.objects.filter(produit=produit).count()
+    produit.save()
+
+    return Response({
+        "success":      True,
+        "message":      "Avis enregistré avec succès !",
+        "note_moyenne": float(produit.note_moyenne),
+        "nombre_avis":  produit.nombre_avis,
+        "created":      created,
+    })

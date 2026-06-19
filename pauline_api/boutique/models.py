@@ -77,6 +77,21 @@ class PasswordResetToken(models.Model):
         return not self.used and self.expire_at > timezone.now()
 
 
+class Avis(models.Model):
+    produit     = models.ForeignKey(Produit, on_delete=models.CASCADE, related_name='avis', db_column='produit_id')
+    utilisateur = models.ForeignKey(Utilisateur, on_delete=models.CASCADE, related_name='avis', db_column='utilisateur_id')
+    note        = models.PositiveSmallIntegerField()  # 1 à 5
+    commentaire = models.TextField(blank=True, null=True)
+    created_at  = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'avis'
+        unique_together = ('produit', 'utilisateur')  # 1 avis par utilisateur par produit
+
+    def __str__(self):
+        return f"{self.utilisateur.nom} - {self.produit.nom} - {self.note}★"
+
+
 class Commande(models.Model):
     STATUT_CHOICES = [
         ('en_attente', 'En attente'),
