@@ -58,9 +58,11 @@ TEMPLATES = [
 WSGI_APPLICATION = 'pauline_api.wsgi.application'
 
 # ── DATABASE ──────────────────────────────────────────────────────────────────
+# Utilise toujours la variable d'environnement DATABASE_URL de Render
+# Fallback sur le session pooler IPv4 de Supabase
 DATABASE_URL = os.environ.get(
     'DATABASE_URL',
-    'postgresql://postgres:freDERIC024%4024@db.kipceqhryvxvwoltgwuv.supabase.co:5432/postgres'
+    'postgresql://postgres.kipceqhryvxvwoltgwuv:freDERIC024@24@aws-1-eu-central-1.pooler.supabase.com:5432/postgres'
 )
 
 DATABASES = {
