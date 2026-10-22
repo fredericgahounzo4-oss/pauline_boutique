@@ -5,7 +5,9 @@ import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-pauline-boutique-change-in-production-xyz123')
+SECRET_KEY = os.environ.get('SECRET_KEY')
+if not SECRET_KEY:
+    raise RuntimeError("La variable SECRET_KEY n'est pas configurée.")
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = [
@@ -58,12 +60,12 @@ TEMPLATES = [
 WSGI_APPLICATION = 'pauline_api.wsgi.application'
 
 # ── DATABASE ──────────────────────────────────────────────────────────────────
-# Utilise toujours la variable d'environnement DATABASE_URL de Render
-# Fallback sur le session pooler IPv4 de Supabase
-DATABASE_URL = os.environ.get(
-    'DATABASE_URL',
-    'postgresql://postgres.kipceqhryvxvwoltgwuv:freDERIC024@24@aws-1-eu-central-1.pooler.supabase.com:5432/postgres'
-)
+# Configure DATABASE_URL dans les variables d'environnement de Render avec
+# la chaîne de connexion fournie par Neon. Ne stocke pas le mot de passe ici.
+DATABASE_URL = os.environ.get('DATABASE_URL')
+
+if not DATABASE_URL:
+    raise RuntimeError("La variable DATABASE_URL n'est pas configurée.")
 
 DATABASES = {
     'default': dj_database_url.config(
@@ -110,8 +112,8 @@ REST_FRAMEWORK = {
 
 # ── CLOUDINARY ────────────────────────────────────────────────────────────────
 cloudinary.config(
-    cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME', 'dwpmqngue'),
-    api_key    = os.environ.get('CLOUDINARY_API_KEY', '265435997616125'),
-    api_secret = os.environ.get('CLOUDINARY_API_SECRET', 'bGol_JagmpIvXOqbt2elFQBpgMs'),
+    cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME'),
+    api_key    = os.environ.get('CLOUDINARY_API_KEY'),
+    api_secret = os.environ.get('CLOUDINARY_API_SECRET'),
     secure     = True
 )
