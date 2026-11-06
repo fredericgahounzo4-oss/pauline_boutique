@@ -7,3 +7,4 @@ gunicorn>=21.0
 cloudinary>=1.36
 psycopg2-binary>=2.9
 dj-database-url>=2.0
+whitenoise>=6.8,<7

@@ -1,5 +1,6 @@
 import bcrypt
-from django.core.management.base import BaseCommand
+import os
+from django.core.management.base import BaseCommand, CommandError
 from boutique.models import Categorie, Produit, ProduitImage, Utilisateur
 
 CATEGORIES = [
@@ -50,12 +51,20 @@ class Command(BaseCommand):
             if created:
                 self.stdout.write(f'  Produit: {obj.nom}')
 
-        hashed = bcrypt.hashpw(b'Admin@1234', bcrypt.gensalt()).decode()
-        admin, created = Utilisateur.objects.get_or_create(
-            email='admin@pauline.com',
-            defaults={'nom': 'Admin Pauline', 'mot_de_passe': hashed, 'role': 'admin'}
-        )
-        if created:
-            self.stdout.write('  Admin: admin@pauline.com / Admin@1234')
+        # Ne jamais créer un compte administrateur avec un mot de passe public/par défaut.
+        admin_email = os.environ.get('INITIAL_ADMIN_EMAIL', '').strip().lower()
+        admin_password = os.environ.get('INITIAL_ADMIN_PASSWORD', '')
+        if admin_email and admin_password:
+            if len(admin_password) < 12:
+                raise CommandError('INITIAL_ADMIN_PASSWORD doit contenir au moins 12 caractères.')
+            hashed = bcrypt.hashpw(admin_password.encode(), bcrypt.gensalt()).decode()
+            admin, created = Utilisateur.objects.get_or_create(
+                email=admin_email,
+                defaults={'nom': 'Admin Pauline', 'mot_de_passe': hashed, 'role': 'admin'}
+            )
+            if created:
+                self.stdout.write(f'  Compte administrateur boutique créé : {admin_email}')
+        else:
+            self.stdout.write('  Aucun admin boutique créé : configurez INITIAL_ADMIN_EMAIL et INITIAL_ADMIN_PASSWORD si nécessaire.')
 
         self.stdout.write(self.style.SUCCESS('Seed termine!'))

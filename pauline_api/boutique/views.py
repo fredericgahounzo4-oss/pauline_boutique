@@ -124,35 +124,49 @@ def check_email(request):
 
 @api_view(['POST', 'OPTIONS'])
 def reset_password(request):
-    email        = (request.data.get('email') or '').strip()
-    new_password = request.data.get('new_password') or ''
-    if not email or not new_password:
-        return Response({"success": False}, status=400)
-    try:
-        user = Utilisateur.objects.get(email=email, actif=True)
-    except Utilisateur.DoesNotExist:
-        return Response({"success": False}, status=404)
-    user.mot_de_passe = hash_password(new_password)
-    user.save()
-    return Response({"success": True})
+    # Ancienne route non sécurisée (changement par simple adresse e-mail).
+    return Response({"success": False, "error": "Utilisez le lien sécurisé envoyé par e-mail."}, status=410)
 
 
 @api_view(['POST', 'OPTIONS'])
 def forgot_password(request):
+    """Crée un jeton à usage unique et envoie le lien depuis le serveur."""
     import datetime
     from django.utils import timezone
-    email = (request.data.get('email') or '').strip()
+    from django.core.mail import send_mail
+    from django.conf import settings as django_settings
+
+    email = (request.data.get('email') or '').strip().lower()
     if not email:
         return Response({"success": False, "error": "E-mail requis."}, status=400)
-    try:
-        user = Utilisateur.objects.get(email=email, actif=True)
-    except Utilisateur.DoesNotExist:
-        return Response({"success": False, "error": "Aucun compte trouvé."}, status=404)
-    PasswordResetToken.objects.filter(utilisateur=user, used=False).delete()
-    token = secrets.token_hex(32)
-    expire = timezone.now() + datetime.timedelta(minutes=30)
-    PasswordResetToken.objects.create(utilisateur=user, token=token, expire_at=expire)
-    return Response({"success": True, "token": token, "nom": user.nom})
+
+    # Réponse identique que le compte existe ou non : évite l'énumération d'e-mails.
+    user = Utilisateur.objects.filter(email__iexact=email, actif=True).first()
+    if user:
+        PasswordResetToken.objects.filter(utilisateur=user, used=False).delete()
+        token = secrets.token_urlsafe(48)[:64]
+        expire = timezone.now() + datetime.timedelta(minutes=30)
+        PasswordResetToken.objects.create(utilisateur=user, token=token, expire_at=expire)
+        reset_url = f"{django_settings.FRONTEND_URL}/reset-password?token={token}"
+        message = (
+            f"Bonjour {user.nom},\n\n"
+            f"Pour choisir un nouveau mot de passe pour Pauline Boutique, ouvrez ce lien :\n{reset_url}\n\n"
+            "Ce lien expire dans 30 minutes et ne peut être utilisé qu'une seule fois.\n"
+            "Si vous n'avez pas demandé cette réinitialisation, ignorez cet e-mail."
+        )
+        try:
+            send_mail(
+                subject='Réinitialisation de votre mot de passe - Pauline Boutique',
+                message=message,
+                from_email=django_settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+                fail_silently=False,
+            )
+        except Exception:
+            PasswordResetToken.objects.filter(utilisateur=user, token=token).delete()
+            return Response({"success": False, "error": "Le service d'envoi d'e-mail est indisponible. Réessayez plus tard."}, status=503)
+
+    return Response({"success": True, "message": "Si un compte correspond à cette adresse, un lien de réinitialisation vient d'être envoyé."})
 
 
 @api_view(['POST', 'OPTIONS'])
@@ -179,10 +193,14 @@ def reset_password_token(request):
         return Response({"success": False, "error": "Token invalide."}, status=404)
     if not t.is_valid():
         return Response({"success": False, "error": "Lien expiré."}, status=400)
-    t.utilisateur.mot_de_passe = hash_password(new_password)
-    t.utilisateur.save()
-    t.used = True
-    t.save()
+    with transaction.atomic():
+        t = PasswordResetToken.objects.select_for_update().get(pk=t.pk)
+        if not t.is_valid():
+            return Response({"success": False, "error": "Lien expiré ou déjà utilisé."}, status=400)
+        t.utilisateur.mot_de_passe = hash_password(new_password)
+        t.utilisateur.save(update_fields=['mot_de_passe', 'updated_at'])
+        t.used = True
+        t.save(update_fields=['used'])
     return Response({"success": True})
 
 

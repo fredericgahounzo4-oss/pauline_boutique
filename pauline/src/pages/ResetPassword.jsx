@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Eye, EyeOff, ArrowLeft } from 'lucide-react';
+import { apiUrl } from '../utils/api';
 
 export const ResetPassword = () => {
     const [searchParams] = useSearchParams();
@@ -19,7 +20,7 @@ export const ResetPassword = () => {
     useEffect(() => {
         if (!token) { setTokenValid(false); return; }
 
-        fetch('/api/auth/verify-reset-token', {
+        fetch(apiUrl('/api/auth/verify-reset-token'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token })
@@ -61,7 +62,7 @@ export const ResetPassword = () => {
         setErrors({});
 
         try {
-            const res = await fetch('/api/auth/reset-password-token', {
+            const res = await fetch(apiUrl('/api/auth/reset-password-token'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ token, new_password: form.password })

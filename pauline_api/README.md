@@ -83,7 +83,6 @@ const API = 'http://localhost:8000/api'
 
 Les URLs restent identiques (ex: `/api/auth/login`, `/api/produits/list`).
 
-## Compte admin par défaut
+## Comptes administrateurs
 
-- Email : `admin@pauline.com`
-- Mot de passe : `Admin@1234`
+Aucun compte avec mot de passe par défaut n'est créé. Pour l'interface Django `/admin/`, exécutez `python manage.py createsuperuser`. Pour créer le compte administrateur du tableau de bord boutique, renseignez `INITIAL_ADMIN_EMAIL` et `INITIAL_ADMIN_PASSWORD` dans l'environnement avant `python manage.py seed_data` (mot de passe d'au moins 12 caractères).

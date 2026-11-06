@@ -5,7 +5,7 @@ import { Button } from '../components/ui/Button';
 import { useNavigate, Link } from 'react-router-dom';
 
 // ─── Config FedaPay ───────────────────────────────────────────────────────────
-const FEDAPAY_PUBLIC_KEY = import.meta.env.VITE_FEDAPAY_PUBLIC_KEY || 'pk_sandbox_VOTRE_CLE';
+const FEDAPAY_PUBLIC_KEY = import.meta.env.VITE_FEDAPAY_PUBLIC_KEY || '';
 const FEDAPAY_MODE       = import.meta.env.VITE_FEDAPAY_MODE       || 'sandbox';
 
 function loadFedaPaySDK() {
@@ -92,6 +92,10 @@ export const Checkout = () => {
     // ─── Lancer le widget FedaPay ─────────────────────────────────────────────
     const triggerFedaPay = () => {
         return new Promise((resolve, reject) => {
+            if (!FEDAPAY_PUBLIC_KEY) {
+                reject(new Error('La clé publique FedaPay est absente. Configurez VITE_FEDAPAY_PUBLIC_KEY sur le frontend.'));
+                return;
+            }
             if (!sdkReady || typeof window.FedaPay === 'undefined') {
                 reject(new Error('SDK FedaPay non prêt. Rechargez la page.'));
                 return;
@@ -149,7 +153,7 @@ export const Checkout = () => {
             }
         };
 
-        const res = await fetch('/api/commandes/create', {
+        const res = await fetch(apiUrl('/api/commandes/create'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)

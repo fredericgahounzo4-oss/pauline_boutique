@@ -3,4 +3,5 @@ __pycache__/
 *.pyo
 pauline_shop.db
 .env
-public/images/products/uploads/
+public/images/products/uploads/.env*
+!.env.example
