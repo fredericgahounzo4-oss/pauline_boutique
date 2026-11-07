@@ -14,6 +14,7 @@ import { Careers } from './pages/Careers';
 import { News } from './pages/News';
 import { Vision } from './pages/Vision';
 import { ForgotPassword } from './pages/ForgotPassword';
+import { ResetPassword } from './pages/ResetPassword';
 
 // ─── Pages Admin ──────────────────────────────────────────────────────────────
 import { AdminDashboard } from './pages/admin/AdminDashboard';
@@ -25,8 +26,8 @@ function App() {
   return (
     <Layout>
       <Routes>
-        // Dans les routes :
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         {/* ── Pages publiques ── */}
         <Route path="/"             element={<Home />} />
         <Route path="/categories"   element={<Shop />} />

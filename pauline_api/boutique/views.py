@@ -130,43 +130,60 @@ def reset_password(request):
 
 @api_view(['POST', 'OPTIONS'])
 def forgot_password(request):
-    """Crée un jeton à usage unique et envoie le lien depuis le serveur."""
+    """Crée un jeton à usage unique et déclenche l'e-mail via EmailJS côté serveur."""
     import datetime
+    import json
+    import urllib.request
+    import urllib.error
     from django.utils import timezone
-    from django.core.mail import send_mail
-    from django.conf import settings as django_settings
 
     email = (request.data.get('email') or '').strip().lower()
     if not email:
         return Response({"success": False, "error": "E-mail requis."}, status=400)
 
-    # Réponse identique que le compte existe ou non : évite l'énumération d'e-mails.
+    # Même réponse que le compte existe ou non afin d'éviter l'énumération d'e-mails.
     user = Utilisateur.objects.filter(email__iexact=email, actif=True).first()
     if user:
+        service_id = os.environ.get('EMAILJS_SERVICE_ID', '').strip()
+        template_id = os.environ.get('EMAILJS_TEMPLATE_ID', '').strip()
+        public_key = os.environ.get('EMAILJS_PUBLIC_KEY', '').strip()
+        if not all((service_id, template_id, public_key)):
+            return Response({"success": False, "error": "Le service d'envoi d'e-mail n'est pas configuré."}, status=503)
+
         PasswordResetToken.objects.filter(utilisateur=user, used=False).delete()
         token = secrets.token_urlsafe(48)[:64]
         expire = timezone.now() + datetime.timedelta(minutes=30)
         PasswordResetToken.objects.create(utilisateur=user, token=token, expire_at=expire)
-        reset_url = f"{django_settings.FRONTEND_URL}/reset-password?token={token}"
-        message = (
-            f"Bonjour {user.nom},\n\n"
-            f"Pour choisir un nouveau mot de passe pour Pauline Boutique, ouvrez ce lien :\n{reset_url}\n\n"
-            "Ce lien expire dans 30 minutes et ne peut être utilisé qu'une seule fois.\n"
-            "Si vous n'avez pas demandé cette réinitialisation, ignorez cet e-mail."
-        )
+        reset_url = f"{settings.FRONTEND_URL}/reset-password?token={token}"
+        payload = {
+            "service_id": service_id,
+            "template_id": template_id,
+            "user_id": public_key,
+            "template_params": {
+                "to_email": user.email,
+                "to_name": user.nom,
+                "reset_link": reset_url,
+                "app_name": "Pauline Boutique",
+            },
+        }
         try:
-            send_mail(
-                subject='Réinitialisation de votre mot de passe - Pauline Boutique',
-                message=message,
-                from_email=django_settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                fail_silently=False,
+            req = urllib.request.Request(
+                'https://api.emailjs.com/api/v1.0/email/send',
+                data=json.dumps(payload).encode('utf-8'),
+                headers={'Content-Type': 'application/json'},
+                method='POST',
             )
+            with urllib.request.urlopen(req, timeout=12) as response:
+                if response.status < 200 or response.status >= 300:
+                    raise RuntimeError(f"EmailJS status {response.status}")
         except Exception:
             PasswordResetToken.objects.filter(utilisateur=user, token=token).delete()
-            return Response({"success": False, "error": "Le service d'envoi d'e-mail est indisponible. Réessayez plus tard."}, status=503)
+            return Response({"success": False, "error": "L'envoi de l'e-mail a échoué. Vérifiez la configuration EmailJS et réessayez."}, status=503)
 
-    return Response({"success": True, "message": "Si un compte correspond à cette adresse, un lien de réinitialisation vient d'être envoyé."})
+    return Response({
+        "success": True,
+        "message": "Si un compte correspond à cette adresse, un lien de réinitialisation vient d'être envoyé."
+    })
 
 
 @api_view(['POST', 'OPTIONS'])

@@ -122,14 +122,11 @@ cloudinary.config(
     secure     = True
 )
 
-# E-mail transactionnel : configurer ces variables dans Render (jamais dans Vite).
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
-EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
-EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True').lower() == 'true'
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'no-reply@pauline-boutique.com')
+# EmailJS est appelé depuis le backend : aucune clé ni jeton de réinitialisation
+# n'est envoyé au navigateur. Configurer ces identifiants dans Render Environment.
+EMAILJS_SERVICE_ID = os.environ.get('EMAILJS_SERVICE_ID', '')
+EMAILJS_TEMPLATE_ID = os.environ.get('EMAILJS_TEMPLATE_ID', '')
+EMAILJS_PUBLIC_KEY = os.environ.get('EMAILJS_PUBLIC_KEY', '')
 FRONTEND_URL = os.environ.get('FRONTEND_URL', 'https://pauline-boutique1.onrender.com').rstrip('/')
 
 # Render termine TLS devant le conteneur.
