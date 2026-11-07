@@ -85,4 +85,4 @@ Les URLs restent identiques (ex: `/api/auth/login`, `/api/produits/list`).
 
 ## Comptes administrateurs
 
-Aucun compte avec mot de passe par défaut n'est créé. Pour l'interface Django `/admin/`, exécutez `python manage.py createsuperuser`. Pour créer le compte administrateur du tableau de bord boutique, renseignez `INITIAL_ADMIN_EMAIL` et `INITIAL_ADMIN_PASSWORD` dans l'environnement avant `python manage.py seed_data` (mot de passe d'au moins 12 caractères).
+Aucun compte avec mot de passe par défaut n'est créé. Pour créer le compte de connexion à l'interface Django `/admin/`, renseignez `INITIAL_ADMIN_USERNAME`, `INITIAL_ADMIN_EMAIL` et `INITIAL_ADMIN_PASSWORD` dans l'environnement avant `python manage.py seed_data` (mot de passe d'au moins 12 caractères). Le compte administrateur du tableau de bord boutique (`Utilisateur`) est distinct et utilise `INITIAL_ADMIN_EMAIL` et `INITIAL_ADMIN_PASSWORD`.

@@ -3,11 +3,12 @@
 ## Backend Django
 - Root Directory : `pauline_api` (ou le dossier backend extrait).
 - Build Command : `pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate`
-- Start Command : `gunicorn pauline_api.wsgi:application`
+- Start Command : `python manage.py seed_data && gunicorn pauline_api.wsgi:application`
+- Dans **Environment**, définir `INITIAL_ADMIN_USERNAME`, `INITIAL_ADMIN_EMAIL` et `INITIAL_ADMIN_PASSWORD` pour créer automatiquement le compte de connexion à `/admin/`. Utiliser un mot de passe fort (au moins 12 caractères).
 - Renseigner les variables de `.env.example` dans **Environment** sur Render. Ne jamais committer `.env`.
 - `DATABASE_URL` doit pointer vers la base PostgreSQL de production.
 - Pour l'e-mail, renseigner un compte SMTP réel. Avec Gmail, utiliser un mot de passe d'application, pas le mot de passe habituel.
-- Créer le compte d'administration Django avec `python manage.py createsuperuser` dans le Shell Render.
+- Le compte superutilisateur Django est créé par `seed_data` au démarrage si les trois variables `INITIAL_ADMIN_USERNAME`, `INITIAL_ADMIN_EMAIL` et `INITIAL_ADMIN_PASSWORD` sont définies.
 
 ## Frontend React/Vite
 - Root Directory : `pauline` (ou le dossier frontend extrait).

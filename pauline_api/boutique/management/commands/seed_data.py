@@ -1,6 +1,7 @@
 import bcrypt
 import os
 from django.core.management.base import BaseCommand, CommandError
+from django.contrib.auth import get_user_model
 from boutique.models import Categorie, Produit, ProduitImage, Utilisateur
 
 CATEGORIES = [
@@ -66,5 +67,37 @@ class Command(BaseCommand):
                 self.stdout.write(f'  Compte administrateur boutique créé : {admin_email}')
         else:
             self.stdout.write('  Aucun admin boutique créé : configurez INITIAL_ADMIN_EMAIL et INITIAL_ADMIN_PASSWORD si nécessaire.')
+
+        # Compte distinct pour l'interface Django /admin/.
+        # Le modèle d'authentification reste celui de Django (username/password).
+        admin_username = os.environ.get('INITIAL_ADMIN_USERNAME', '').strip()
+        if admin_username and admin_email and admin_password:
+            if len(admin_password) < 12:
+                raise CommandError('INITIAL_ADMIN_PASSWORD doit contenir au moins 12 caractères.')
+
+            User = get_user_model()
+            django_admin = User.objects.filter(username=admin_username).first()
+            if django_admin:
+                if not django_admin.is_superuser or not django_admin.is_staff:
+                    raise CommandError(
+                        f"Le nom d'utilisateur '{admin_username}' existe déjà mais n'est pas superutilisateur."
+                    )
+                self.stdout.write(f'  Superutilisateur Django déjà présent : {admin_username}')
+            else:
+                if User.objects.filter(email=admin_email).exists():
+                    raise CommandError(
+                        f"L'adresse {admin_email} est déjà utilisée par un autre compte Django."
+                    )
+                User.objects.create_superuser(
+                    username=admin_username,
+                    email=admin_email,
+                    password=admin_password,
+                )
+                self.stdout.write(f'  Superutilisateur Django créé : {admin_username}')
+        else:
+            self.stdout.write(
+                '  Superutilisateur Django non créé : configurez INITIAL_ADMIN_USERNAME, '
+                'INITIAL_ADMIN_EMAIL et INITIAL_ADMIN_PASSWORD.'
+            )
 
         self.stdout.write(self.style.SUCCESS('Seed termine!'))
