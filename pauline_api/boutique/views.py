@@ -147,8 +147,16 @@ def forgot_password(request):
         service_id = os.environ.get('EMAILJS_SERVICE_ID', '').strip()
         template_id = os.environ.get('EMAILJS_TEMPLATE_ID', '').strip()
         public_key = os.environ.get('EMAILJS_PUBLIC_KEY', '').strip()
+        private_key = os.environ.get('EMAILJS_PRIVATE_KEY', '').strip()
         if not all((service_id, template_id, public_key)):
-            return Response({"success": False, "error": "Le service d'envoi d'e-mail n'est pas configuré."}, status=503)
+            # Ne jamais écrire les valeurs des clés dans les logs.
+            missing = [name for name, value in (
+                ('EMAILJS_SERVICE_ID', service_id),
+                ('EMAILJS_TEMPLATE_ID', template_id),
+                ('EMAILJS_PUBLIC_KEY', public_key),
+            ) if not value]
+            print('EmailJS configuration incomplete; missing: ' + ', '.join(missing))
+            return Response({"success": False, "error": "Configuration EmailJS incomplète : " + ', '.join(missing)}, status=503)
 
         PasswordResetToken.objects.filter(utilisateur=user, used=False).delete()
         token = secrets.token_urlsafe(48)[:64]
@@ -159,6 +167,8 @@ def forgot_password(request):
             "service_id": service_id,
             "template_id": template_id,
             "user_id": public_key,
+            # Clé privée facultative mais recommandée pour les appels serveur.
+            **({"accessToken": private_key} if private_key else {}),
             "template_params": {
                 "to_email": user.email,
                 "to_name": user.nom,
@@ -176,9 +186,20 @@ def forgot_password(request):
             with urllib.request.urlopen(req, timeout=12) as response:
                 if response.status < 200 or response.status >= 300:
                     raise RuntimeError(f"EmailJS status {response.status}")
-        except Exception:
+        except urllib.error.HTTPError as exc:
+            # EmailJS renvoie souvent une explication utile dans le corps HTTP.
+            try:
+                detail = exc.read().decode('utf-8', errors='replace')[:500]
+            except Exception:
+                detail = str(exc)
+            print(f'EmailJS HTTP error {exc.code}: {detail}')
             PasswordResetToken.objects.filter(utilisateur=user, token=token).delete()
-            return Response({"success": False, "error": "L'envoi de l'e-mail a échoué. Vérifiez la configuration EmailJS et réessayez."}, status=503)
+            return Response({"success": False, "error": "EmailJS a refusé l'envoi (HTTP " + str(exc.code) + "). Vérifiez les paramètres EmailJS et l'autorisation des appels serveur."}, status=503)
+        except Exception as exc:
+            # Journaliser le type et le message, jamais les clés ni le payload complet.
+            print(f'EmailJS send error: {type(exc).__name__}: {str(exc)[:300]}')
+            PasswordResetToken.objects.filter(utilisateur=user, token=token).delete()
+            return Response({"success": False, "error": "L'envoi de l'e-mail a échoué. Consultez les logs du backend pour le détail EmailJS."}, status=503)
 
     return Response({
         "success": True,
