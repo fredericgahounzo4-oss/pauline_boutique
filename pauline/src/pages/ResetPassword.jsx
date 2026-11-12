@@ -123,7 +123,7 @@ export const ResetPassword = () => {
                                     placeholder="123456"
                                     className={`${inputCls} text-center text-2xl tracking-widest font-mono`}
                                 />
-                                <p className="mt-1 text-xs text-text-muted text-center">Le code expire après 30 minutes.</p>
+                                <p className="mt-1 text-xs text-text-muted text-center">Le code expire après 10 minutes.</p>
                             </div>
                             <button type="submit" disabled={isLoading}
                                 className="w-full flex justify-center py-3 px-4 rounded-xl text-sm font-semibold text-white bg-primary hover:bg-primary/90 disabled:opacity-60 transition-colors">

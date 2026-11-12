@@ -146,7 +146,7 @@ def forgot_password(request):
 
         # Générer un code à 6 chiffres
         code = str(random.randint(100000, 999999))
-        expire = timezone.now() + datetime.timedelta(minutes=30)
+        expire = timezone.now() + datetime.timedelta(minutes=10)
         PasswordResetToken.objects.create(utilisateur=user, token=code, expire_at=expire)
 
         # Retourner le code au frontend (EmailJS est appelé depuis le navigateur)
