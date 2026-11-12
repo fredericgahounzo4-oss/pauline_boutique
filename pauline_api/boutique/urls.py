@@ -8,7 +8,7 @@ urlpatterns = [
     path('auth/check-email',          views.check_email,           name='check-email'),
     path('auth/reset-password',       views.reset_password,        name='reset-password'),
     path('auth/forgot-password',      views.forgot_password,       name='forgot-password'),
-    path('auth/verify-reset-token',   views.verify_reset_token,    name='verify-reset-token'),
+    path('auth/verify-reset-code',    views.verify_reset_code,     name='verify-reset-code'),
     path('auth/reset-password-token', views.reset_password_token,  name='reset-password-token'),
 
     # Produits

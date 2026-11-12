@@ -1,6 +1,7 @@
 import uuid
 import hashlib
 import secrets
+import random
 from django.db import transaction
 from django.db.models import Count, Sum, Q
 from django.conf import settings
@@ -125,90 +126,82 @@ def check_email(request):
 @api_view(['POST', 'OPTIONS'])
 def reset_password(request):
     # Ancienne route non sécurisée (changement par simple adresse e-mail).
-    return Response({"success": False, "error": "Utilisez le lien sécurisé envoyé par e-mail."}, status=410)
+    return Response({"success": False, "error": "Utilisez le code envoyé par e-mail."}, status=410)
 
 
 @api_view(['POST', 'OPTIONS'])
 def forgot_password(request):
-    """Crée un jeton à usage unique et déclenche l'e-mail via EmailJS côté serveur."""
+    """Génère un code à 6 chiffres et le retourne au frontend qui envoie l'email via EmailJS."""
     import datetime
-    import json
-    import urllib.request
-    import urllib.error
     from django.utils import timezone
 
     email = (request.data.get('email') or '').strip().lower()
     if not email:
         return Response({"success": False, "error": "E-mail requis."}, status=400)
 
-    # Même réponse que le compte existe ou non afin d'éviter l'énumération d'e-mails.
     user = Utilisateur.objects.filter(email__iexact=email, actif=True).first()
     if user:
-        service_id = os.environ.get('EMAILJS_SERVICE_ID', '').strip()
-        template_id = os.environ.get('EMAILJS_TEMPLATE_ID', '').strip()
-        public_key = os.environ.get('EMAILJS_PUBLIC_KEY', '').strip()
-        private_key = os.environ.get('EMAILJS_PRIVATE_KEY', '').strip()
-        if not all((service_id, template_id, public_key)):
-            # Ne jamais écrire les valeurs des clés dans les logs.
-            missing = [name for name, value in (
-                ('EMAILJS_SERVICE_ID', service_id),
-                ('EMAILJS_TEMPLATE_ID', template_id),
-                ('EMAILJS_PUBLIC_KEY', public_key),
-            ) if not value]
-            print('EmailJS configuration incomplete; missing: ' + ', '.join(missing))
-            return Response({"success": False, "error": "Configuration EmailJS incomplète : " + ', '.join(missing)}, status=503)
-
+        # Supprimer les anciens codes non utilisés
         PasswordResetToken.objects.filter(utilisateur=user, used=False).delete()
-        token = secrets.token_urlsafe(48)[:64]
-        expire = timezone.now() + datetime.timedelta(minutes=30)
-        PasswordResetToken.objects.create(utilisateur=user, token=token, expire_at=expire)
-        reset_url = f"{settings.FRONTEND_URL}/reset-password?token={token}"
 
-        # EmailJS est appelé depuis le FRONTEND (pas le backend) car Cloudflare bloque les appels serveur.
-        # On retourne le token et l'URL au frontend qui se charge d'envoyer l'email.
+        # Générer un code à 6 chiffres
+        code = str(random.randint(100000, 999999))
+        expire = timezone.now() + datetime.timedelta(minutes=30)
+        PasswordResetToken.objects.create(utilisateur=user, token=code, expire_at=expire)
+
+        # Retourner le code au frontend (EmailJS est appelé depuis le navigateur)
         return Response({
             "success": True,
-            "token": token,
+            "code": code,
             "user_name": user.nom,
             "user_email": user.email,
-            "reset_url": reset_url,
-            "message": "Si un compte correspond à cette adresse, un lien de réinitialisation vient d'être envoyé."
+            "message": "Un code de vérification vient d'être envoyé à votre adresse e-mail."
         })
 
     return Response({
         "success": True,
-        "message": "Si un compte correspond à cette adresse, un lien de réinitialisation vient d'être envoyé."
+        "message": "Si un compte correspond à cette adresse, un code vient de lui être envoyé."
     })
 
 
 @api_view(['POST', 'OPTIONS'])
-def verify_reset_token(request):
-    token = (request.data.get('token') or '').strip()
-    if not token:
-        return Response({"valid": False})
+def verify_reset_code(request):
+    """Vérifie qu'un code 6 chiffres est valide et non expiré."""
+    code = (request.data.get('code') or '').strip()
+    if not code:
+        return Response({"valid": False, "error": "Code requis."}, status=400)
     try:
-        t = PasswordResetToken.objects.get(token=token)
-        return Response({"valid": t.is_valid()})
+        t = PasswordResetToken.objects.get(token=code, used=False)
+        if t.is_valid():
+            return Response({"valid": True})
+        return Response({"valid": False, "error": "Code expiré."}, status=400)
     except PasswordResetToken.DoesNotExist:
-        return Response({"valid": False})
+        return Response({"valid": False, "error": "Code invalide."}, status=400)
+
+
+@api_view(['POST', 'OPTIONS'])
+def verify_reset_token(request):
+    """Gardé pour compatibilité — redirige vers verify_reset_code."""
+    return verify_reset_code(request)
 
 
 @api_view(['POST', 'OPTIONS'])
 def reset_password_token(request):
-    token        = (request.data.get('token') or '').strip()
+    """Réinitialise le mot de passe avec un code 6 chiffres valide."""
+    code         = (request.data.get('code') or request.data.get('token') or '').strip()
     new_password = request.data.get('new_password') or ''
-    if not token or not new_password or len(new_password) < 8:
+    if not code or not new_password or len(new_password) < 8:
         return Response({"success": False, "error": "Données invalides."}, status=400)
     try:
-        t = PasswordResetToken.objects.get(token=token)
+        t = PasswordResetToken.objects.get(token=code, used=False)
     except PasswordResetToken.DoesNotExist:
-        return Response({"success": False, "error": "Token invalide."}, status=404)
+        return Response({"success": False, "error": "Code invalide."}, status=404)
     if not t.is_valid():
-        return Response({"success": False, "error": "Lien expiré."}, status=400)
+        return Response({"success": False, "error": "Code expiré."}, status=400)
     with transaction.atomic():
         t = PasswordResetToken.objects.select_for_update().get(pk=t.pk)
         if not t.is_valid():
-            return Response({"success": False, "error": "Lien expiré ou déjà utilisé."}, status=400)
+            return Response({"success": False, "error": "Code expiré ou déjà utilisé."}, status=400)
         t.utilisateur.mot_de_passe = hash_password(new_password)
         t.utilisateur.save(update_fields=['mot_de_passe', 'updated_at'])
         t.used = True
@@ -376,7 +369,6 @@ def admin_produits_add(request):
         image_principale=image_url, actif=True
     )
 
-    # Lire actif depuis le formulaire si fourni
     actif_val = request.data.get('actif') or request.POST.get('actif')
     if actif_val is not None:
         produit.actif = str(actif_val) in ['1', 'true', 'True']
@@ -385,8 +377,6 @@ def admin_produits_add(request):
     return Response({
         'success': True, 'message': 'Produit ajouté.', 'id': produit.id, 'image': image_url
     })
-
-
 
 
 @api_view(['POST', 'OPTIONS'])
@@ -400,7 +390,6 @@ def admin_produits_edit(request):
     except Produit.DoesNotExist:
         return Response({"error": "Produit introuvable."}, status=404)
 
-    # Image — garder l'ancienne si pas de nouvelle
     image_url = produit.image_principale
     if 'image' in request.FILES:
         try:
@@ -421,7 +410,6 @@ def admin_produits_edit(request):
 
     produit.image_principale = image_url
 
-    # ── Correction du champ actif ──────────────────────────────────────────────
     if 'actif' in request.data:
         actif_val = request.data.get('actif')
     elif 'actif' in request.POST:
