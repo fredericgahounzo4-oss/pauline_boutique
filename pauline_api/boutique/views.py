@@ -163,43 +163,17 @@ def forgot_password(request):
         expire = timezone.now() + datetime.timedelta(minutes=30)
         PasswordResetToken.objects.create(utilisateur=user, token=token, expire_at=expire)
         reset_url = f"{settings.FRONTEND_URL}/reset-password?token={token}"
-        payload = {
-            "service_id": service_id,
-            "template_id": template_id,
-            "user_id": public_key,
-            # Clé privée facultative mais recommandée pour les appels serveur.
-            **({"accessToken": private_key} if private_key else {}),
-            "template_params": {
-                "to_email": user.email,
-                "to_name": user.nom,
-                "reset_link": reset_url,
-                "app_name": "Pauline Boutique",
-            },
-        }
-        try:
-            req = urllib.request.Request(
-                'https://api.emailjs.com/api/v1.0/email/send',
-                data=json.dumps(payload).encode('utf-8'),
-                headers={'Content-Type': 'application/json'},
-                method='POST',
-            )
-            with urllib.request.urlopen(req, timeout=12) as response:
-                if response.status < 200 or response.status >= 300:
-                    raise RuntimeError(f"EmailJS status {response.status}")
-        except urllib.error.HTTPError as exc:
-            # EmailJS renvoie souvent une explication utile dans le corps HTTP.
-            try:
-                detail = exc.read().decode('utf-8', errors='replace')[:500]
-            except Exception:
-                detail = str(exc)
-            print(f'EmailJS HTTP error {exc.code}: {detail}')
-            PasswordResetToken.objects.filter(utilisateur=user, token=token).delete()
-            return Response({"success": False, "error": "EmailJS a refusé l'envoi (HTTP " + str(exc.code) + "). Vérifiez les paramètres EmailJS et l'autorisation des appels serveur."}, status=503)
-        except Exception as exc:
-            # Journaliser le type et le message, jamais les clés ni le payload complet.
-            print(f'EmailJS send error: {type(exc).__name__}: {str(exc)[:300]}')
-            PasswordResetToken.objects.filter(utilisateur=user, token=token).delete()
-            return Response({"success": False, "error": "L'envoi de l'e-mail a échoué. Consultez les logs du backend pour le détail EmailJS."}, status=503)
+
+        # EmailJS est appelé depuis le FRONTEND (pas le backend) car Cloudflare bloque les appels serveur.
+        # On retourne le token et l'URL au frontend qui se charge d'envoyer l'email.
+        return Response({
+            "success": True,
+            "token": token,
+            "user_name": user.nom,
+            "user_email": user.email,
+            "reset_url": reset_url,
+            "message": "Si un compte correspond à cette adresse, un lien de réinitialisation vient d'être envoyé."
+        })
 
     return Response({
         "success": True,
